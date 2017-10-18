@@ -65,62 +65,35 @@ chrome.runtime.onMessage.addListener(
     })
 }("object" == typeof window ? window : this);
 
-function postJSON(O, url, callback) {
-    var invocation = new XMLHttpRequest();
-    invocation.open('POST', url, true);
-    invocation.setRequestHeader('Content-Type', 'application/json');
-
-    invocation.onload = function () {
-        if (invocation.readyState === invocation.DONE) {
-            if (invocation.status === 202) {
-                callback(JSON.parse(invocation.response));
-                // console.log(invocation.response);
-            } else {
-                callback({ "errornum": "4", "errortext": "The connection timed out. Please try again when you have a better network connection." });
-                //TODO: better error handling
-                //{ "errornum": "4", "errortext": "The connection timed out. Please try again when you have a better network connection." },
-                //{ "errornum": "5", "errortext": "The request was denied. Please contact the network administrator." },
-                //{ "errornum": "6", "errortext": "An Internal Server Error caused the application to fail. Please contact the network administrator." }
-            }
-        }
-    };
-    invocation.send(JSON.stringify(O));
-}
-
 function aXeThis(send) {
-
-    var url = 'http://dart:5002';
-    axe.run(document, function (error, results) {
-        var Results;
-        Results = results;
-
+    axe.run(document, function (error, Results) {
         chrome.runtime.sendMessage(Results, function (response) {
             if (response != null)
                 console.log(response.farewell);
+            if ($('#mainContent').length > 0) {
+                $("#mainContent").animate({ scrollTop: 0 }, "slow");
+            } else {
+                $("html").animate({ scrollTop: 0 }, "slow");
+            }
         });
         if (send === true) {
-            postJSON(Results, url, function (d) {
-                if ($('#complianceMessage')) {
-                    $('#complianceMessage').remove();
-                }
-                if (d.hasOwnProperty('status')) {
-                    $('body').prepend('<div id="complianceMessage" style="display: none; border: 1px solid black; border-radius: 3px; padding: 10px; min-height: 30px; width: 200px; position: fixed; top:700px; right: 20px; background-color: green; font-size: 14px; color: white;z-index: 10000;">Saved</div>');
-                }
-                if (d.hasOwnProperty('errornum')) {  //response handling 
-                    $('body').prepend('<div id="complianceMessage" style="display: none; border: 1px solid black; border-radius: 3px; padding: 10px; min-height: 30px; width: 200px; position: fixed; top:700px; right: 20px; background-color: red; font-size: 14px; color: white;z-index: 10000;">Error saving compliance data</div>');
-                }
-                $("#mainContent").animate({ scrollTop: 0 }, "slow");
+            if ($('#complianceMessage')) {
+                $('#complianceMessage').remove();
+            }
+            if (Results.hasOwnProperty('violations').length == 0) {
                 $('#complianceMessage').fadeIn(500);
-                $('#complianceMessage').fadeOut(2000, function () {
-                    if (Results.violations.length > 0) {
-                        $('#complianceMessage').removeAttr('style');
-                        $('#complianceMessage').attr('style', 'display: none; border: 1px solid black; border-radius: 3px; padding: 10px; min-height: 30px; width: 200px; position: fixed; top:700px; right: 20px; background-color: red; font-size: 14px; color: white;z-index: 10000;');
-                        $('#complianceMessage').html('This page has accessibilty compliance errors');
-                        $('#complianceMessage').fadeIn(500);
-                        $('#complianceMessage').fadeOut(3000);
-                    }
-                });
-            });
+                $('body').prepend('<div id="complianceMessage" style="display: none; border: 1px solid black; border-radius: 3px; padding: 10px; min-height: 30px; width: 200px; position: fixed; top:700px; right: 20px; background-color: green; font-size: 14px; color: white;z-index: 10000;">No Violations</div>');
+                $('#complianceMessage').fadeOut(2000);
+            }
+
+            if (Results.violations.length > 0) {
+                $('body').prepend('<div id="complianceMessage" style="display: none; border: 1px solid black; border-radius: 3px; padding: 10px; min-height: 30px; width: 200px; position: fixed; top:700px; right: 20px; background-color: red; font-size: 14px; color: white;z-index: 10000;">Error saving compliance data</div>');
+                $('#complianceMessage').removeAttr('style');
+                $('#complianceMessage').attr('style', 'display: none; border: 1px solid black; border-radius: 3px; padding: 10px; min-height: 30px; width: 200px; position: fixed; top:700px; right: 20px; background-color: red; font-size: 14px; color: white;z-index: 10000;');
+                $('#complianceMessage').html('This page has accessibilty compliance errors');
+                $('#complianceMessage').fadeIn(500);
+                $('#complianceMessage').fadeOut(3000);
+            }
         }
     });
 }
