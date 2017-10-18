@@ -1,7 +1,14 @@
 ﻿var http = require('http');
 
 var server = http.createServer(function (request, response) {
-    response.setHeader('Access-Control-Allow-Origin', 'http://localhost:8080');
+
+    var allowedOrigins = ['http://127.0.0.1:8080', 'http://localhost:8080', 'chrome-extension://onameflbhebfjidplgfoioinleegllia'];
+    var origin = request.headers.origin;
+    if (allowedOrigins.indexOf(origin) > -1) {
+        response.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    console.log('Origin: ', origin);
+    //response.setHeader('Access-Control-Allow-Origin', 'http://localhost:8080');
     response.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
     response.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
 
@@ -23,18 +30,18 @@ var server = http.createServer(function (request, response) {
             body = Buffer.concat(body).toString();
             console.log(JSON.parse(body));//TODO: Write to DB here
             response.statusCode = 202;
-            xhrResponse = {status: 'success'};
+            xhrResponse = { status: 'success' };
             xhrResponse = JSON.stringify(xhrResponse);
             response.end(xhrResponse);
         })
-    }  
+    }
 
     else {
         response.statusCode = 404;
         response.end();
     }
 })
-port = 3000;
-host = '127.0.0.1';
+port = 5002;
+host = '10.200.168.96';
 server.listen(port, host);
 console.log('Listening at http://' + host + ': ' + port);

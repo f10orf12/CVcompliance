@@ -2,16 +2,24 @@
   "name": "Server",
   "version": "1.0.0",
   "description": "Nodejs-based WCAG 508 Compliance tester using aXe.js 2.3.1",
-  "main": "complianceServer.js",
+  "main": "wcagServer.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [ ],
   "author": "steven davies",
   "license": "ISC",
   "bugs": "https://github.com/f10orf12/CVcompliance/issues",
   "homepage": "https://github.com/f10orf12/CVcompliance",
   "devDependencies": {
     "aXe": "2.3.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/f10orf12/CVcompliance"
+  },
+  "dependencies": {
+    "http-server": ">0.9.0",
+    "nodemon": ">1.12.1"
   }
 }

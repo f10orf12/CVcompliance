@@ -1,9 +1,5 @@
 chrome.runtime.onMessage.addListener(
   function (request, sender, sendResponse) {
-      console.log(sender.tab ?
-                  "from a content script:" + sender.tab.url :
-                  "from the extension");
-      console.log(request.greeting);
       if (request.greeting)
           sendResponse({ farewell: "content goodbye" });
       aXeThis(false);
@@ -90,44 +86,30 @@ function postJSON(O, url, callback) {
     };
     invocation.send(JSON.stringify(O));
 }
-var Results;
-
 
 function aXeThis(send) {
 
-    var url = 'http://localhost:3000';
+    var url = 'http://dart:5002';
     axe.run(document, function (error, results) {
+        var Results;
         Results = results;
-        var page = Results.url;
-        page = page.slice(page.lastIndexOf('/') + 1, page.lastIndexOf('page') + 4);
-        console.log('Page: ', page);
-        for (i = 0; i < Results.violations.length; i++) {
-            console.log(Results.violations[i].impact, '   ', Results.violations[i].id, '  ', Results.violations[i].description);
-            if (Results.violations[i].nodes.length > 0) {
-                console.log('     Affected nodes:');
-                for (y = 0; y < Results.violations[i].nodes.length; y++) {
-                    console.log('          ', Results.violations[i].nodes[y].html);
-                }
-            }
-            console.log('');
-        }
-
 
         chrome.runtime.sendMessage(Results, function (response) {
-            if(response != null)
-            console.log(response.farewell);
+            if (response != null)
+                console.log(response.farewell);
         });
         if (send === true) {
             postJSON(Results, url, function (d) {
-                console.log(d);
+                if ($('#complianceMessage')) {
+                    $('#complianceMessage').remove();
+                }
                 if (d.hasOwnProperty('status')) {
-                    console.log('v2.3.1 -- success!!!!!');
-                    $('body').prepend('<div id="complianceMessage" style="display: none; border: 1px solid black; border-radius: 3px; padding: 10px; min-height: 30px; width: 200px; position: fixed; top:700px; right: 20px; background-color: green; font-size: 14px; color: white;z-index: 10000;">Saved!</div>')
-
+                    $('body').prepend('<div id="complianceMessage" style="display: none; border: 1px solid black; border-radius: 3px; padding: 10px; min-height: 30px; width: 200px; position: fixed; top:700px; right: 20px; background-color: green; font-size: 14px; color: white;z-index: 10000;">Saved</div>');
                 }
                 if (d.hasOwnProperty('errornum')) {  //response handling 
-                    $('body').prepend('<div id="complianceMessage" style="display: none; border: 1px solid black; border-radius: 3px; padding: 10px; min-height: 30px; width: 200px; position: fixed; top:700px; right: 20px; background-color: red; font-size: 14px; color: white;z-index: 10000;">Error saving compliance data</div>')
+                    $('body').prepend('<div id="complianceMessage" style="display: none; border: 1px solid black; border-radius: 3px; padding: 10px; min-height: 30px; width: 200px; position: fixed; top:700px; right: 20px; background-color: red; font-size: 14px; color: white;z-index: 10000;">Error saving compliance data</div>');
                 }
+                $("#mainContent").animate({ scrollTop: 0 }, "slow");
                 $('#complianceMessage').fadeIn(500);
                 $('#complianceMessage').fadeOut(2000, function () {
                     if (Results.violations.length > 0) {

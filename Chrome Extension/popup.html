@@ -67,24 +67,25 @@
             font-size: 100%;
         }
 
-        h1{
+        h1 {
             height: 25px;
-            text-align:left;
+            text-align: left;
         }
 
         #status {
-            /* avoid an excessively wide status text */
-            white-space: pre;
+            padding: 10px;
             text-overflow: ellipsis;
             overflow: hidden;
-            max-width: 400px;
+            max-width: 600px;
             font-size: 12px;
         }
 
         #page {
-            color: darkgray;
+            border: 1px solid #dad7d7;
+            border-radius: 3px;
+            padding: 4px;
+            color: #454545;
             font-size: 15px;
-            text-transform: uppercase;
         }
 
         #violations {
@@ -98,7 +99,8 @@
         }
 
         .warning {
-            font-size: 14px;
+            font-size: 15px;
+            font-weight: bold;
             padding-right: 5px;
             text-transform: capitalize;
         }
@@ -112,6 +114,7 @@
         }
 
         .issue {
+            color: #454545;
             padding-left: 10px;
             font-size: 14px;
             text-transform: capitalize;
@@ -119,7 +122,12 @@
 
         .description {
             padding: 5px 0 2px 5px;
+            font-size: 16px;
         }
+
+            .description > xmp {
+                margin: 0;
+            }
 
         .affected {
             padding: 5px;
@@ -133,7 +141,7 @@
         }
 
         pre {
-            margin-bottom: 1em;
+            margin: 0 0 1em .5em;
             padding: 5px;
             padding-bottom: 20px !ie7;
             width: auto;
@@ -145,12 +153,14 @@
 
         xmp {
             display: inline-block;
+            margin: .5em;
         }
 
         span {
             display: inline-block;
             padding-right: 5px;
         }
+
     </style>
     <!--
       - JavaScript and HTML must be in separate files: see our Content Security
@@ -163,8 +173,9 @@
 </head>
 <body>
     <div id="status">
+        <div id="analyzer" class="analyzer"><img src="ajax-loader.gif" alt="anaylyzing page" /></div>
         <h1>
-            <span class="label">Page: </span><span id="page"></span>
+            <span class="label" id="pageLabel">Page: </span><span id="page"></span>
         </h1>
         <div id="violations"></div>
     </div>
