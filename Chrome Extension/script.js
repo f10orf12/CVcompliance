@@ -25,6 +25,26 @@ function findCode(o) {
     return o;
 }
 
+function formatFixes(s) {
+    var fixesMarkup = '';
+    fixes = s.split('\n');
+    for (z = 0; z < fixes.length; z++) {
+        if ((fixes[z] == 'Fix all of the following:' || fixes[z] == 'Fix any of the following:') && z < 1) {
+            fixesMarkup += '<div class="fixes">' + fixes[z] + '</div><ul>';
+            z++
+        }
+        if ((fixes[z] == 'Fix all of the following:' || fixes[z] == 'Fix any of the following:') && z > 1) {
+            fixesMarkup += '</ul><div class="fixes">' + fixes[z] + '</div><ul>';
+        }
+        else if (fixes[z].length > 1) {
+            fixesMarkup += '<li>' + fixes[z] + '</li>';
+        }  
+    }
+    fixesMarkup += '</ul>';
+    return fixesMarkup;
+}
+
+var violations = {};
 chrome.runtime.onMessage.addListener(
   function (request, sender, sendResponse) {
       console.log(sender.tab ?
@@ -43,18 +63,21 @@ chrome.runtime.onMessage.addListener(
           } else {
               page = page.slice(page.lastIndexOf('/') + 1, page.lastIndexOf('page') + 4);
           }
-          if (page == '') { page = request.url }
+          if (page == '') { page = request.url.slice(0, 72) + '...'; }
           $('#analyzer').hide();
           $('#page').html(page);
           $('#pageLabel').show();
           $('#page').show();
           $('#violations').html('');
+          violations = request.violations;
+          console.log(request.violations);
           for (i = 0; i < request.violations.length; i++) {
               $('#violations').append('<div>' + '<span class="warning ' + request.violations[i].impact + '">' + request.violations[i].impact + '</span><span class="issue">' + request.violations[i].id + ' </span><div class="description">' + findCode(request.violations[i].description) + '</div></div>');
               if (request.violations[i].nodes.length > 0) {
                   $('#violations').append('<div class="affected">Affected nodes:</div>');
                   for (y = 0; y < request.violations[i].nodes.length; y++) {
                       $('#violations').append('<pre class="default prettyprint prettyprinted"><code><span>' + findCode(request.violations[i].nodes[y].html) + '</span></code></pre>');
+                      $('#violations').append('<div class="failureSummary">' + formatFixes(request.violations[i].nodes[y].failureSummary) + '</div>');
                   }
               }
           }

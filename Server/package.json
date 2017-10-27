@@ -12,7 +12,7 @@
   "bugs": "https://github.com/f10orf12/CVcompliance/issues",
   "homepage": "https://github.com/f10orf12/CVcompliance",
   "devDependencies": {
-    "aXe": "2.3.1"
+    "aXe": ">2.4.0"
   },
   "repository": {
     "type": "git",
