@@ -1,7 +1,7 @@
 {
   "name": "Server",
-  "version": "1.0.0",
-  "description": "Nodejs-based WCAG 508 Compliance tester using aXe.js 2.3.1",
+  "version": "1.0.1",
+  "description": "Chrome Browser Extension for WCAG 508 Compliance tester using aXe.js 2.4.2",
   "main": "wcagServer.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

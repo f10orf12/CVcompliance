@@ -8615,6 +8615,9 @@ chrome.runtime.onMessage.addListener(
 })(typeof window === 'object' ? window : this);
 
 function aXeThis(send) {
+    if ($('#complianceMessage')) {
+        $('#complianceMessage').remove();
+    }
     axe.run(document, function (error, Results) {
         chrome.runtime.sendMessage(Results, function (response) {
             if (response != null)
