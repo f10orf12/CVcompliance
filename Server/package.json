@@ -1,7 +1,7 @@
 {
   "name": "Server",
   "version": "1.0.1",
-  "description": "Chrome Browser Extension for WCAG 508 Compliance tester using aXe.js 2.4.2",
+  "description": "Chrome Browser Extension for WCAG 508 Compliance tester using aXe.js 2.5.0",
   "main": "wcagServer.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -12,7 +12,7 @@
   "bugs": "https://github.com/f10orf12/CVcompliance/issues",
   "homepage": "https://github.com/f10orf12/CVcompliance",
   "devDependencies": {
-    "aXe": ">2.4.0"
+    "aXe": ">2.5.0"
   },
   "repository": {
     "type": "git",

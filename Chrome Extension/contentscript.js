@@ -21,7 +21,7 @@ chrome.runtime.onMessage.addListener(
     }), n.each({ Height: "height", Width: "width" }, function (a, b) { n.each({ padding: "inner" + a, content: b, "": "outer" + a }, function (c, d) { n.fn[d] = function (d, e) { var f = arguments.length && (c || "boolean" != typeof d), g = c || (d === !0 || e === !0 ? "margin" : "border"); return Y(this, function (b, c, d) { var e; return n.isWindow(b) ? b.document.documentElement["client" + a] : 9 === b.nodeType ? (e = b.documentElement, Math.max(b.body["scroll" + a], e["scroll" + a], b.body["offset" + a], e["offset" + a], e["client" + a])) : void 0 === d ? n.css(b, c, g) : n.style(b, c, d, g) }, b, f ? d : void 0, f, null) } }) }), n.fn.extend({ bind: function (a, b, c) { return this.on(a, null, b, c) }, unbind: function (a, b) { return this.off(a, null, b) }, delegate: function (a, b, c, d) { return this.on(b, a, c, d) }, undelegate: function (a, b, c) { return 1 === arguments.length ? this.off(a, "**") : this.off(b, a || "**", c) } }), n.fn.size = function () { return this.length }, n.fn.andSelf = n.fn.addBack, "function" == typeof define && define.amd && define("jquery", [], function () { return n }); var nc = a.jQuery, oc = a.$; return n.noConflict = function (b) { return a.$ === n && (a.$ = oc), b && a.jQuery === n && (a.jQuery = nc), n }, b || (a.jQuery = a.$ = n), n
 });
 
-/*! aXe v2.4.2
+/*! aXe v2.5.0
  * Copyright (c) 2017 Deque Systems, Inc.
  *
  * Your use of this Source Code Form is subject to the terms of the Mozilla Public
@@ -42,7 +42,7 @@ chrome.runtime.onMessage.addListener(
         return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? 'symbol' : typeof obj;
     };
     var axe = axe || {};
-    axe.version = '2.4.2';
+    axe.version = '2.5.0';
     if (typeof define === 'function' && define.amd) {
         define([], function () {
             'use strict';
@@ -1231,6 +1231,13 @@ chrome.runtime.onMessage.addListener(
         resultObject.timestamp = new Date().toISOString();
         resultObject.url = window.location.href;
         resultKeys.forEach(function (key) {
+            if (options.resultTypes && !options.resultTypes.includes(key)) {
+                (resultObject[key] || []).forEach(function (ruleResult) {
+                    if (Array.isArray(ruleResult.nodes) && ruleResult.nodes.length > 0) {
+                        ruleResult.nodes = [ruleResult.nodes[0]];
+                    }
+                });
+            }
             resultObject[key] = (resultObject[key] || []).map(function (ruleResult) {
                 ruleResult = Object.assign({}, ruleResult);
                 if (Array.isArray(ruleResult.nodes) && ruleResult.nodes.length > 0) {
@@ -1287,6 +1294,7 @@ chrome.runtime.onMessage.addListener(
             callback = options;
             options = {};
         }
+        options.resultTypes = ['violations'];
         var out = helpers.processAggregate(results, options);
         callback({
             violations: out.violations,
@@ -3335,7 +3343,7 @@ chrome.runtime.onMessage.addListener(
                 },
                 'th-has-data-cells': {
                     description: 'Ensure that each table header in a data table refers to data cells',
-                    help: 'All th element and elements with role=columnheader/rowheader must data cells which it describes'
+                    help: 'All th elements and elements with role=columnheader/rowheader must have data cells they describe'
                 },
                 'valid-lang': {
                     description: 'Ensures lang attributes have valid values',
@@ -3556,6 +3564,28 @@ chrome.runtime.onMessage.addListener(
                                     out += ' ' + value;
                                 }
                             }
+                            return out;
+                        }
+                    }
+                },
+                'aria-errormessage': {
+                    impact: 'critical',
+                    messages: {
+                        pass: function anonymous(it) {
+                            var out = 'Uses a supported aria-errormessage technique';
+                            return out;
+                        },
+                        fail: function anonymous(it) {
+                            var out = 'aria-errormessage value' + (it.data && it.data.length > 1 ? 's' : '') + ' ';
+                            var arr1 = it.data;
+                            if (arr1) {
+                                var value, i1 = -1, l1 = arr1.length - 1;
+                                while (i1 < l1) {
+                                    value = arr1[i1 += 1];
+                                    out += ' `' + value;
+                                }
+                            }
+                            out += '` must use a technique to announce the message (e.g., aria-live, aria-describedby, role=alert, etc.)';
                             return out;
                         }
                     }
@@ -4477,11 +4507,11 @@ chrome.runtime.onMessage.addListener(
                 return false;
             },
             tags: ['cat.aria', 'wcag2a', 'wcag131', 'wcag411', 'wcag412'],
-            all: [],
-            any: [{
+            all: [{
                 options: [],
                 id: 'aria-valid-attr-value'
-            }],
+            }, 'aria-errormessage'],
+            any: [],
             none: []
         }, {
             id: 'aria-valid-attr',
@@ -5040,6 +5070,26 @@ chrome.runtime.onMessage.addListener(
                 return node.getAttribute('aria-hidden') !== 'true';
             }
         }, {
+            id: 'aria-errormessage',
+            evaluate: function evaluate(node, options) {
+                options = Array.isArray(options) ? options : [];
+                var attr = node.getAttribute('aria-errormessage'), hasAttr = node.hasAttribute('aria-errormessage');
+                var doc = document;
+                function validateAttrValue() {
+                    var idref = attr && doc.getElementById(attr);
+                    if (idref) {
+                        return idref.getAttribute('role') === 'alert' || idref.getAttribute('aria-live') === 'assertive' || axe.utils.tokenList(node.getAttribute('aria-describedby') || '').indexOf(attr) > -1;
+                    }
+                }
+                if (options.indexOf(attr) === -1 && hasAttr) {
+                    if (!validateAttrValue()) {
+                        this.data(attr);
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }, {
             id: 'invalidrole',
             evaluate: function evaluate(node, options) {
                 return !axe.commons.aria.isValidRole(node.getAttribute('role'));
@@ -5092,7 +5142,7 @@ chrome.runtime.onMessage.addListener(
                     }
                     return false;
                 }
-                function missingRequiredChildren(node, childRoles, all) {
+                function missingRequiredChildren(node, childRoles, all, role) {
                     var i, l = childRoles.length, missing = [], ownedElements = idrefs(node, 'aria-owns');
                     for (i = 0; i < l; i++) {
                         var r = childRoles[i];
@@ -5106,10 +5156,16 @@ chrome.runtime.onMessage.addListener(
                             }
                         }
                     }
-                    if (node.tagName === 'INPUT' && node.type === 'text') {
+                    if (role === 'combobox') {
                         var textboxIndex = missing.indexOf('textbox');
-                        if (textboxIndex >= 0) {
+                        var textTypeInputs = ['text', 'search', 'email', 'url', 'tel'];
+                        if (textboxIndex >= 0 && node.tagName === 'INPUT' && textTypeInputs.includes(node.type)) {
                             missing.splice(textboxIndex, 1);
+                        }
+                        var listboxIndex = missing.indexOf('listbox');
+                        var expanded = node.getAttribute('aria-expanded');
+                        if (listboxIndex >= 0 && (!expanded || expanded === 'false')) {
+                            missing.splice(listboxIndex, 1);
                         }
                     }
                     if (missing.length) {
@@ -5131,7 +5187,7 @@ chrome.runtime.onMessage.addListener(
                     var all = true;
                     childRoles = required.all;
                 }
-                var missing = missingRequiredChildren(node, childRoles, all);
+                var missing = missingRequiredChildren(node, childRoles, all, role);
                 if (!missing) {
                     return true;
                 }
@@ -5201,11 +5257,14 @@ chrome.runtime.onMessage.addListener(
                 options = Array.isArray(options) ? options : [];
                 var invalid = [], aria = /^aria-/;
                 var attr, attrName, attrs = node.attributes;
+                var skipAttrs = ['aria-errormessage'];
                 for (var i = 0, l = attrs.length; i < l; i++) {
                     attr = attrs[i];
                     attrName = attr.name;
-                    if (options.indexOf(attrName) === -1 && aria.test(attrName) && !axe.commons.aria.validateAttrValue(node, attrName)) {
-                        invalid.push(attrName + '="' + attr.nodeValue + '"');
+                    if (!skipAttrs.includes(attrName)) {
+                        if (options.indexOf(attrName) === -1 && aria.test(attrName) && !axe.commons.aria.validateAttrValue(node, attrName)) {
+                            invalid.push(attrName + '="' + attr.nodeValue + '"');
+                        }
                     }
                 }
                 if (invalid.length) {
@@ -6385,6 +6444,9 @@ chrome.runtime.onMessage.addListener(
                 'aria-dropeffect': {
                     type: 'nmtokens',
                     values: ['copy', 'move', 'reference', 'execute', 'popup', 'none']
+                },
+                'aria-errormessage': {
+                    type: 'idref'
                 },
                 'aria-expanded': {
                     type: 'nmtoken',
