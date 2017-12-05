@@ -3,7 +3,11 @@ function findCode(o) {
     var codeString;
     var iB = o.indexOf('<');
     var iE;
-    beginCodeString = o.slice(iB, 4);
+    var iS = 0;
+
+    if (iB > iS) { iS = iB + 4 }
+    beginCodeString = o.slice(iB, iS);
+
     if (beginCodeString == '<div') {
         iE = o.indexOf('</div>');
         iE += 6;
@@ -16,7 +20,13 @@ function findCode(o) {
         iE = o.indexOf('</p>');
         iE += 4;
     }
-    
+
+    if (beginCodeString == '<inp') {
+
+        iE = o.indexOf('>');
+        iE += 1;
+    }
+
     if (iB != -1) {
         codeString = o.slice(iB, iE);
         o = o.replace(codeString, '</span><xmp>' + codeString + '</xmp><span>');
