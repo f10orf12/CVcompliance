@@ -13,7 +13,7 @@
     "tabs"
   ],
   "content_scripts": [{
-      "matches": ["http://localhost/*",  "https://localhost/*", "https://qa-eservices/*", "http://jdavies/*", "https://jdavies/*"],
+      "matches": ["http://localhost/*",  "https://localhost/*", "https://qa-eservices/*", "http://jdavies/*", "https://jdavies/*", "https://liucos7/*", "http://liucos7/*"],
       "js": ["contentscript.js"]
   }],
   "web_accessible_resources": ["insertAxe.js"]
