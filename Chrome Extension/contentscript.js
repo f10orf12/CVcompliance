@@ -21,7 +21,7 @@ chrome.runtime.onMessage.addListener(
     }), n.each({ Height: "height", Width: "width" }, function (a, b) { n.each({ padding: "inner" + a, content: b, "": "outer" + a }, function (c, d) { n.fn[d] = function (d, e) { var f = arguments.length && (c || "boolean" != typeof d), g = c || (d === !0 || e === !0 ? "margin" : "border"); return Y(this, function (b, c, d) { var e; return n.isWindow(b) ? b.document.documentElement["client" + a] : 9 === b.nodeType ? (e = b.documentElement, Math.max(b.body["scroll" + a], e["scroll" + a], b.body["offset" + a], e["offset" + a], e["client" + a])) : void 0 === d ? n.css(b, c, g) : n.style(b, c, d, g) }, b, f ? d : void 0, f, null) } }) }), n.fn.extend({ bind: function (a, b, c) { return this.on(a, null, b, c) }, unbind: function (a, b) { return this.off(a, null, b) }, delegate: function (a, b, c, d) { return this.on(b, a, c, d) }, undelegate: function (a, b, c) { return 1 === arguments.length ? this.off(a, "**") : this.off(b, a || "**", c) } }), n.fn.size = function () { return this.length }, n.fn.andSelf = n.fn.addBack, "function" == typeof define && define.amd && define("jquery", [], function () { return n }); var nc = a.jQuery, oc = a.$; return n.noConflict = function (b) { return a.$ === n && (a.$ = oc), b && a.jQuery === n && (a.jQuery = nc), n }, b || (a.jQuery = a.$ = n), n
 });
 
-/*! aXe v2.5.0
+/*! aXe v2.6.1
  * Copyright (c) 2017 Deque Systems, Inc.
  *
  * Your use of this Source Code Form is subject to the terms of the Mozilla Public
@@ -42,7 +42,7 @@ chrome.runtime.onMessage.addListener(
         return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? 'symbol' : typeof obj;
     };
     var axe = axe || {};
-    axe.version = '2.5.0';
+    axe.version = '2.6.1';
     if (typeof define === 'function' && define.amd) {
         define([], function () {
             'use strict';
@@ -278,7 +278,7 @@ chrome.runtime.onMessage.addListener(
     Audit.prototype._constructHelpUrls = function () {
         var _this = this;
         var previous = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
-        var version = (axe.version.match(/^[1-9][0-9]*\.[1-9][0-9]*/) || ['x.y'])[0];
+        var version = (axe.version.match(/^[1-9][0-9]*\.[0-9]+/) || ['x.y'])[0];
         this.rules.forEach(function (rule) {
             if (!_this.data.rules[rule.id]) {
                 _this.data.rules[rule.id] = {};
@@ -910,7 +910,7 @@ chrome.runtime.onMessage.addListener(
             callback(err);
         };
         var context = data && data.context || {};
-        if (context.include && !context.include.length) {
+        if (context.hasOwnProperty('include') && !context.include.length) {
             context.include = [document];
         }
         var options = data && data.options || {};
@@ -1420,6 +1420,49 @@ chrome.runtime.onMessage.addListener(
         return nodeResult;
     };
     'use strict';
+    (function () {
+        axe.utils.aggregateNodeResults = function (nodeResults) {
+            var ruleResult = {};
+            nodeResults = nodeResults.map(function (nodeResult) {
+                if (nodeResult.any && nodeResult.all && nodeResult.none) {
+                    return axe.utils.aggregateChecks(nodeResult);
+                } else if (Array.isArray(nodeResult.node)) {
+                    return axe.utils.finalizeRuleResult(nodeResult);
+                } else {
+                    throw new TypeError('Invalid Result type');
+                }
+            });
+            if (nodeResults && nodeResults.length) {
+                var resultList = nodeResults.map(function (node) {
+                    return node.result;
+                });
+                ruleResult.result = axe.utils.aggregate(axe.constants.results, resultList, ruleResult.result);
+            } else {
+                ruleResult.result = 'inapplicable';
+            }
+            axe.constants.resultGroups.forEach(function (group) {
+                return ruleResult[group] = [];
+            });
+            nodeResults.forEach(function (nodeResult) {
+                var groupName = axe.constants.resultGroupMap[nodeResult.result];
+                ruleResult[groupName].push(nodeResult);
+            });
+            var impactGroup = axe.constants.FAIL_GROUP;
+            if (ruleResult[impactGroup].length === 0) {
+                impactGroup = axe.constants.CANTTELL_GROUP;
+            }
+            if (ruleResult[impactGroup].length > 0) {
+                var impactList = ruleResult[impactGroup].map(function (failure) {
+                    return failure.impact;
+                });
+                ruleResult.impact = axe.utils.aggregate(axe.constants.impact, impactList) || null;
+            } else {
+                ruleResult.impact = null;
+            }
+            return ruleResult;
+        };
+    })();
+    'use strict';
     function copyToGroup(resultObject, subResult, group) {
         var resultCopy = Object.assign({}, subResult);
         resultCopy.nodes = (resultCopy[group] || []).concat();
@@ -1448,45 +1491,6 @@ chrome.runtime.onMessage.addListener(
         });
         return resultObject;
     };
-    'use strict';
-    (function () {
-        axe.utils.aggregateRule = function (subResults) {
-            var ruleResult = {};
-            subResults = subResults.map(function (subResult) {
-                if (subResult.any && subResult.all && subResult.none) {
-                    return axe.utils.aggregateChecks(subResult);
-                } else if (Array.isArray(subResult.node)) {
-                    return axe.utils.finalizeRuleResult(subResult);
-                } else {
-                    throw new TypeError('Invalid Result type');
-                }
-            });
-            var resultList = subResults.map(function (node) {
-                return node.result;
-            });
-            ruleResult.result = axe.utils.aggregate(axe.constants.results, resultList, ruleResult.result);
-            axe.constants.resultGroups.forEach(function (group) {
-                return ruleResult[group] = [];
-            });
-            subResults.forEach(function (subResult) {
-                var groupName = axe.constants.resultGroupMap[subResult.result];
-                ruleResult[groupName].push(subResult);
-            });
-            var impactGroup = axe.constants.FAIL_GROUP;
-            if (ruleResult[impactGroup].length === 0) {
-                impactGroup = axe.constants.CANTTELL_GROUP;
-            }
-            if (ruleResult[impactGroup].length > 0) {
-                var impactList = ruleResult[impactGroup].map(function (failure) {
-                    return failure.impact;
-                });
-                ruleResult.impact = axe.utils.aggregate(axe.constants.impact, impactList) || null;
-            } else {
-                ruleResult.impact = null;
-            }
-            return ruleResult;
-        };
-    })();
     'use strict';
     function areStylesSet(el, styles, stopAt) {
         'use strict';
@@ -1518,7 +1522,7 @@ chrome.runtime.onMessage.addListener(
                 this.isAsync = true;
                 return function (result) {
                     if (result instanceof Error === false) {
-                        checkResult.value = result;
+                        checkResult.result = result;
                         resolve(checkResult);
                     } else {
                         reject(result);
@@ -1761,7 +1765,7 @@ chrome.runtime.onMessage.addListener(
     };
     'use strict';
     axe.utils.finalizeRuleResult = function (ruleResult) {
-        Object.assign(ruleResult, axe.utils.aggregateRule(ruleResult.nodes));
+        Object.assign(ruleResult, axe.utils.aggregateNodeResults(ruleResult.nodes));
         delete ruleResult.nodes;
         return ruleResult;
     };
@@ -1820,7 +1824,7 @@ chrome.runtime.onMessage.addListener(
             var _d = false;
             var _e = undefined;
             try {
-                for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done) ; _n = true) {
+                for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) {
                     _arr.push(_s.value);
                     if (i && _arr.length === i) {
                         break;
@@ -1941,7 +1945,7 @@ chrome.runtime.onMessage.addListener(
     'use strict';
     function _toConsumableArray(arr) {
         if (Array.isArray(arr)) {
-            for (var i = 0, arr2 = Array(arr.length) ; i < arr.length; i++) {
+            for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) {
                 arr2[i] = arr[i];
             }
             return arr2;
@@ -1950,6 +1954,7 @@ chrome.runtime.onMessage.addListener(
         }
     }
     var escapeSelector = axe.utils.escapeSelector;
+    var isXHTML = void 0;
     function isUncommonClassName(className) {
         return !['focus', 'hover', 'hidden', 'visible', 'dirty', 'touched', 'valid', 'disable', 'enable', 'active', 'col-'].find(function (str) {
             return className.includes(str);
@@ -2007,7 +2012,6 @@ chrome.runtime.onMessage.addListener(
         getUncommonElm: function getUncommonElm(elm, _ref2) {
             var isCommonElm = _ref2.isCommonElm, isCustomElm = _ref2.isCustomElm, nodeName = _ref2.nodeName;
             if (!isCommonElm && !isCustomElm) {
-                nodeName = escapeSelector(nodeName);
                 if (nodeName === 'input' && elm.hasAttribute('type')) {
                     nodeName += '[type="' + elm.type + '"]';
                 }
@@ -2047,7 +2051,10 @@ chrome.runtime.onMessage.addListener(
         }
     };
     function getElmFeatures(elm, featureCount) {
-        var nodeName = elm.nodeName.toLowerCase();
+        if (typeof isXHTML === 'undefined') {
+            isXHTML = axe.utils.isXHTML(document);
+        }
+        var nodeName = escapeSelector(isXHTML ? elm.localName : elm.nodeName.toLowerCase());
         var classList = Array.from(elm.classList) || [];
         var props = {
             nodeName: nodeName,
@@ -2210,6 +2217,14 @@ chrome.runtime.onMessage.addListener(
             return true;
         }
         return axe.utils.isHidden(el.parentNode, true);
+    };
+    'use strict';
+    axe.utils.isXHTML = function (doc) {
+        'use strict';
+        if (!doc.createElement) {
+            return false;
+        }
+        return doc.createElement('A').localName === 'A';
     };
     'use strict';
     function pushFrame(resultSet, options, frameElement, frameSelector) {
@@ -2381,25 +2396,27 @@ chrome.runtime.onMessage.addListener(
         })();
     }
     if (!Array.prototype.find) {
-        Array.prototype.find = function (predicate) {
-            if (this === null) {
-                throw new TypeError('Array.prototype.find called on null or undefined');
-            }
-            if (typeof predicate !== 'function') {
-                throw new TypeError('predicate must be a function');
-            }
-            var list = Object(this);
-            var length = list.length >>> 0;
-            var thisArg = arguments[1];
-            var value;
-            for (var i = 0; i < length; i++) {
-                value = list[i];
-                if (predicate.call(thisArg, value, i, list)) {
-                    return value;
+        Object.defineProperty(Array.prototype, 'find', {
+            value: function value(predicate) {
+                if (this === null) {
+                    throw new TypeError('Array.prototype.find called on null or undefined');
                 }
+                if (typeof predicate !== 'function') {
+                    throw new TypeError('predicate must be a function');
+                }
+                var list = Object(this);
+                var length = list.length >>> 0;
+                var thisArg = arguments[1];
+                var value;
+                for (var i = 0; i < length; i++) {
+                    value = list[i];
+                    if (predicate.call(thisArg, value, i, list)) {
+                        return value;
+                    }
+                }
+                return undefined;
             }
-            return undefined;
-        };
+        });
     }
     axe.utils.pollyfillElementsFromPoint = function () {
         if (document.elementsFromPoint) {
@@ -2430,7 +2447,7 @@ chrome.runtime.onMessage.addListener(
                 });
                 current.style.setProperty(cssProp, cssDisableVal, 'important');
             }
-            for (i = previousPointerEvents.length; !!(d = previousPointerEvents[--i]) ;) {
+            for (i = previousPointerEvents.length; !!(d = previousPointerEvents[--i]);) {
                 elements[i].style.setProperty(cssProp, d.value ? d.value : '', d.priority);
             }
             document.head.removeChild(style);
@@ -2441,108 +2458,114 @@ chrome.runtime.onMessage.addListener(
         document.elementsFromPoint = axe.utils.pollyfillElementsFromPoint();
     }
     if (!Array.prototype.includes) {
-        Array.prototype.includes = function (searchElement) {
-            'use strict';
-            var O = Object(this);
-            var len = parseInt(O.length, 10) || 0;
-            if (len === 0) {
+        Object.defineProperty(Array.prototype, 'includes', {
+            value: function value(searchElement) {
+                'use strict';
+                var O = Object(this);
+                var len = parseInt(O.length, 10) || 0;
+                if (len === 0) {
+                    return false;
+                }
+                var n = parseInt(arguments[1], 10) || 0;
+                var k;
+                if (n >= 0) {
+                    k = n;
+                } else {
+                    k = len + n;
+                    if (k < 0) {
+                        k = 0;
+                    }
+                }
+                var currentElement;
+                while (k < len) {
+                    currentElement = O[k];
+                    if (searchElement === currentElement || searchElement !== searchElement && currentElement !== currentElement) {
+                        return true;
+                    }
+                    k++;
+                }
                 return false;
             }
-            var n = parseInt(arguments[1], 10) || 0;
-            var k;
-            if (n >= 0) {
-                k = n;
-            } else {
-                k = len + n;
-                if (k < 0) {
-                    k = 0;
-                }
-            }
-            var currentElement;
-            while (k < len) {
-                currentElement = O[k];
-                if (searchElement === currentElement || searchElement !== searchElement && currentElement !== currentElement) {
-                    return true;
-                }
-                k++;
-            }
-            return false;
-        };
+        });
     }
     if (!Array.prototype.some) {
-        Array.prototype.some = function (fun) {
-            'use strict';
-            if (this == null) {
-                throw new TypeError('Array.prototype.some called on null or undefined');
-            }
-            if (typeof fun !== 'function') {
-                throw new TypeError();
-            }
-            var t = Object(this);
-            var len = t.length >>> 0;
-            var thisArg = arguments.length >= 2 ? arguments[1] : void 0;
-            for (var i = 0; i < len; i++) {
-                if (i in t && fun.call(thisArg, t[i], i, t)) {
-                    return true;
+        Object.defineProperty(Array.prototype, 'some', {
+            value: function value(fun) {
+                'use strict';
+                if (this == null) {
+                    throw new TypeError('Array.prototype.some called on null or undefined');
                 }
+                if (typeof fun !== 'function') {
+                    throw new TypeError();
+                }
+                var t = Object(this);
+                var len = t.length >>> 0;
+                var thisArg = arguments.length >= 2 ? arguments[1] : void 0;
+                for (var i = 0; i < len; i++) {
+                    if (i in t && fun.call(thisArg, t[i], i, t)) {
+                        return true;
+                    }
+                }
+                return false;
             }
-            return false;
-        };
+        });
     }
     if (!Array.from) {
-        Array.from = function () {
-            var toStr = Object.prototype.toString;
-            var isCallable = function isCallable(fn) {
-                return typeof fn === 'function' || toStr.call(fn) === '[object Function]';
-            };
-            var toInteger = function toInteger(value) {
-                var number = Number(value);
-                if (isNaN(number)) {
-                    return 0;
-                }
-                if (number === 0 || !isFinite(number)) {
-                    return number;
-                }
-                return (number > 0 ? 1 : -1) * Math.floor(Math.abs(number));
-            };
-            var maxSafeInteger = Math.pow(2, 53) - 1;
-            var toLength = function toLength(value) {
-                var len = toInteger(value);
-                return Math.min(Math.max(len, 0), maxSafeInteger);
-            };
-            return function from(arrayLike) {
-                var C = this;
-                var items = Object(arrayLike);
-                if (arrayLike == null) {
-                    throw new TypeError('Array.from requires an array-like object - not null or undefined');
-                }
-                var mapFn = arguments.length > 1 ? arguments[1] : void undefined;
-                var T;
-                if (typeof mapFn !== 'undefined') {
-                    if (!isCallable(mapFn)) {
-                        throw new TypeError('Array.from: when provided, the second argument must be a function');
+        Object.defineProperty(Array, 'from', {
+            value: function () {
+                var toStr = Object.prototype.toString;
+                var isCallable = function isCallable(fn) {
+                    return typeof fn === 'function' || toStr.call(fn) === '[object Function]';
+                };
+                var toInteger = function toInteger(value) {
+                    var number = Number(value);
+                    if (isNaN(number)) {
+                        return 0;
                     }
-                    if (arguments.length > 2) {
-                        T = arguments[2];
+                    if (number === 0 || !isFinite(number)) {
+                        return number;
                     }
-                }
-                var len = toLength(items.length);
-                var A = isCallable(C) ? Object(new C(len)) : new Array(len);
-                var k = 0;
-                var kValue;
-                while (k < len) {
-                    kValue = items[k];
-                    if (mapFn) {
-                        A[k] = typeof T === 'undefined' ? mapFn(kValue, k) : mapFn.call(T, kValue, k);
-                    } else {
-                        A[k] = kValue;
+                    return (number > 0 ? 1 : -1) * Math.floor(Math.abs(number));
+                };
+                var maxSafeInteger = Math.pow(2, 53) - 1;
+                var toLength = function toLength(value) {
+                    var len = toInteger(value);
+                    return Math.min(Math.max(len, 0), maxSafeInteger);
+                };
+                return function from(arrayLike) {
+                    var C = this;
+                    var items = Object(arrayLike);
+                    if (arrayLike == null) {
+                        throw new TypeError('Array.from requires an array-like object - not null or undefined');
                     }
-                    k += 1;
-                }
-                A.length = len;
-                return A;
-            };
-        }();
+                    var mapFn = arguments.length > 1 ? arguments[1] : void undefined;
+                    var T;
+                    if (typeof mapFn !== 'undefined') {
+                        if (!isCallable(mapFn)) {
+                            throw new TypeError('Array.from: when provided, the second argument must be a function');
+                        }
+                        if (arguments.length > 2) {
+                            T = arguments[2];
+                        }
+                    }
+                    var len = toLength(items.length);
+                    var A = isCallable(C) ? Object(new C(len)) : new Array(len);
+                    var k = 0;
+                    var kValue;
+                    while (k < len) {
+                        kValue = items[k];
+                        if (mapFn) {
+                            A[k] = typeof T === 'undefined' ? mapFn(kValue, k) : mapFn.call(T, kValue, k);
+                        } else {
+                            A[k] = kValue;
+                        }
+                        k += 1;
+                    }
+                    A.length = len;
+                    return A;
+                };
+            }()
+        });
     }
     if (!String.prototype.includes) {
         String.prototype.includes = function (search, start) {
@@ -2867,7 +2890,7 @@ chrome.runtime.onMessage.addListener(
         'use strict';
         var include, exclude, matching;
         var defaultExclude = axe._audit && axe._audit.tagExclude ? axe._audit.tagExclude : [];
-        if (runOnly.include || runOnly.exclude) {
+        if (runOnly.hasOwnProperty('include') || runOnly.hasOwnProperty('exclude')) {
             include = runOnly.include || [];
             include = Array.isArray(include) ? include : [include];
             exclude = runOnly.exclude || [];
@@ -2946,10 +2969,10 @@ chrome.runtime.onMessage.addListener(
             top: win.pageYOffset,
             left: win.pageXOffset
         } : {
-            elm: root,
-            top: root.scrollTop,
-            left: root.scrollLeft
-        }];
+                elm: root,
+                top: root.scrollTop,
+                left: root.scrollLeft
+            }];
         return windowScroll.concat(getElmScrollRecursive(document.body));
     };
     axe.utils.setScrollState = function setScrollState(scrollState) {
@@ -3256,6 +3279,14 @@ chrome.runtime.onMessage.addListener(
                 label: {
                     description: 'Ensures every form element has a label',
                     help: 'Form elements must have labels'
+                },
+                'landmark-main-is-top-level': {
+                    description: 'The main landmark should not be contained in another landmark',
+                    help: 'Main landmark is not at top level'
+                },
+                'landmark-one-main': {
+                    description: 'Ensures a navigation point to the primary content of the page. If the page contains iframes, each iframe should contain either no main landmarks or just one.',
+                    help: 'Page must contain one main landmark.'
                 },
                 'layout-table': {
                     description: 'Ensures presentational <table> elements do not use <th>, <caption> elements or the summary attribute',
@@ -3811,7 +3842,7 @@ chrome.runtime.onMessage.addListener(
                             return out;
                         },
                         fail: function anonymous(it) {
-                            var out = 'Element has insufficient color contrast of ' + it.data.contrastRatio + ' (foreground color: ' + it.data.fgColor + ', background color: ' + it.data.bgColor + ', font size: ' + it.data.fontSize + ', font weight: ' + it.data.fontWeight + ')';
+                            var out = 'Element has insufficient color contrast of ' + it.data.contrastRatio + ' (foreground color: ' + it.data.fgColor + ', background color: ' + it.data.bgColor + ', font size: ' + it.data.fontSize + ', font weight: ' + it.data.fontWeight + '). Expected contrast ratio of ' + it.data.expectedContrastRatio;
                             return out;
                         },
                         incomplete: {
@@ -3821,6 +3852,8 @@ chrome.runtime.onMessage.addListener(
                             bgOverlap: 'Element\'s background color could not be determined because it is overlapped by another element',
                             fgAlpha: 'Element\'s foreground color could not be determined because of alpha transparency',
                             elmPartiallyObscured: 'Element\'s background color could not be determined because it\'s partially obscured by another element',
+                            elmPartiallyObscuring: 'Element\'s background color could not be determined because it partially overlaps other elements',
+                            outsideViewport: 'Element\'s background color could not be determined because it\'s outside the viewport',
                             equalRatio: 'Element has a 1:1 contrast ratio with the background',
                             default: 'Unable to determine contrast ratio'
                         }
@@ -4073,6 +4106,45 @@ chrome.runtime.onMessage.addListener(
                         },
                         fail: function anonymous(it) {
                             var out = 'Form element has multiple <label> elements';
+                            return out;
+                        }
+                    }
+                },
+                'main-is-top-level': {
+                    impact: 'moderate',
+                    messages: {
+                        pass: function anonymous(it) {
+                            var out = 'The main landmark is at the top level.';
+                            return out;
+                        },
+                        fail: function anonymous(it) {
+                            var out = 'The main landmark is contained in another landmark.';
+                            return out;
+                        }
+                    }
+                },
+                'has-at-least-one-main': {
+                    impact: 'moderate',
+                    messages: {
+                        pass: function anonymous(it) {
+                            var out = 'Document has at least one main landmark';
+                            return out;
+                        },
+                        fail: function anonymous(it) {
+                            var out = 'Document has no main landmarks';
+                            return out;
+                        }
+                    }
+                },
+                'has-no-more-than-one-main': {
+                    impact: 'moderate',
+                    messages: {
+                        pass: function anonymous(it) {
+                            var out = 'Document has no more than one main landmark';
+                            return out;
+                        },
+                        fail: function anonymous(it) {
+                            var out = 'Document has more than one main landmark';
                             return out;
                         }
                     }
@@ -4610,7 +4682,7 @@ chrome.runtime.onMessage.addListener(
                     if (candidate && candidate.disabled) {
                         return false;
                     }
-                    var candidate = node.querySelector('input:not([type="hidden"]):not([type="image"])' + ':not([type="button"]):not([type="submit"]):not([type="reset"]), select, textarea');
+                    var candidate = relevantNode.querySelector('input:not([type="hidden"]):not([type="image"])' + ':not([type="button"]):not([type="submit"]):not([type="reset"]), select, textarea');
                     if (candidate && candidate.disabled) {
                         return false;
                     }
@@ -4782,6 +4854,20 @@ chrome.runtime.onMessage.addListener(
             all: [],
             any: ['aria-label', 'aria-labelledby', 'implicit-label', 'explicit-label', 'non-empty-title'],
             none: ['help-same-as-label', 'multiple-label']
+        }, {
+            id: 'landmark-main-is-top-level',
+            selector: 'main,[role=main]',
+            tags: ['best-practice'],
+            all: [],
+            any: ['main-is-top-level'],
+            none: []
+        }, {
+            id: 'landmark-one-main',
+            selector: 'html',
+            tags: ['best-practice'],
+            all: ['has-at-least-one-main', 'has-no-more-than-one-main'],
+            any: [],
+            none: []
         }, {
             id: 'layout-table',
             selector: 'table',
@@ -5322,7 +5408,8 @@ chrome.runtime.onMessage.addListener(
                     contrastRatio: cr ? truncatedResult : undefined,
                     fontSize: (fontSize * 72 / 96).toFixed(1) + 'pt',
                     fontWeight: bold ? 'bold' : 'normal',
-                    missingData: missing
+                    missingData: missing,
+                    expectedContrastRatio: cr.expectedContrastRatio + ':1'
                 };
                 this.data(data);
                 if (fgColor === null || bgColor === null || equalRatio) {
@@ -5571,6 +5658,48 @@ chrome.runtime.onMessage.addListener(
                 return !axe.commons.text.accessibleText(node);
             }
         }, {
+            id: 'has-at-least-one-main',
+            evaluate: function evaluate(node, options) {
+                var mains = document.querySelectorAll('main,[role=main]');
+                this.data(!!mains[0]);
+                return !!mains[0];
+            },
+            after: function after(results, options) {
+                var hasMain = false;
+                for (var i = 0; i < results.length && !hasMain; i++) {
+                    hasMain = results[i].data;
+                }
+                for (var i = 0; i < results.length; i++) {
+                    results[i].result = hasMain;
+                }
+                return results;
+            }
+        }, {
+            id: 'has-no-more-than-one-main',
+            evaluate: function evaluate(node, options) {
+                var mains = document.querySelectorAll('main,[role=main]');
+                return mains.length <= 1;
+            }
+        }, {
+            id: 'main-is-top-level',
+            evaluate: function evaluate(node, options) {
+                var landmarks = axe.commons.aria.getRolesByType('landmark');
+                var parent = node.parentNode;
+                while (parent) {
+                    if (parent.nodeType === 1) {
+                        var role = parent.getAttribute('role');
+                        if (!role && parent.tagName.toLowerCase() !== 'form') {
+                            role = axe.commons.aria.implicitRole(parent);
+                        }
+                        if (role && landmarks.includes(role)) {
+                            return false;
+                        }
+                    }
+                    parent = parent.parentNode;
+                }
+                return true;
+            }
+        }, {
             id: 'tabindex',
             evaluate: function evaluate(node, options) {
                 return node.tabIndex <= 0;
@@ -5693,7 +5822,7 @@ chrome.runtime.onMessage.addListener(
         }, {
             id: 'dlitem',
             evaluate: function evaluate(node, options) {
-                return node.parentNode.tagName === 'DL';
+                return node.parentNode.tagName.toUpperCase() === 'DL';
             }
         }, {
             id: 'has-listitem',
@@ -6011,12 +6140,22 @@ chrome.runtime.onMessage.addListener(
             id: 'region',
             evaluate: function evaluate(node, options) {
                 var landmarkRoles = axe.commons.aria.getRolesByType('landmark'), firstLink = node.querySelector('a[href]');
+                var implicitLandmarks = landmarkRoles.reduce(function (arr, role) {
+                    return arr.concat(axe.commons.aria.implicitNodes(role));
+                }, []).filter(function (r) {
+                    return r !== null;
+                });
                 function isSkipLink(n) {
-                    return firstLink && axe.commons.dom.isFocusable(axe.commons.dom.getElementByReference(firstLink, 'href')) && firstLink === n;
+                    return firstLink && axe.commons.dom.getElementByReference(firstLink, 'href') && firstLink === n;
                 }
-                function isLandmark(n) {
-                    var role = n.getAttribute('role');
-                    return role && landmarkRoles.indexOf(role) !== -1;
+                function isLandmark(node) {
+                    if (node.hasAttribute('role')) {
+                        return landmarkRoles.includes(node.getAttribute('role').toLowerCase());
+                    } else {
+                        return implicitLandmarks.some(function (implicitSelector) {
+                            return axe.utils.matchesSelector(node, implicitSelector);
+                        });
+                    }
                 }
                 function checkRegion(n) {
                     if (isLandmark(n)) {
@@ -6051,7 +6190,8 @@ chrome.runtime.onMessage.addListener(
         }, {
             id: 'skip-link',
             evaluate: function evaluate(node, options) {
-                return axe.commons.dom.isFocusable(axe.commons.dom.getElementByReference(node, 'href'));
+                var target = axe.commons.dom.getElementByReference(node, 'href');
+                return !!target && axe.commons.dom.isFocusable(target);
             },
             after: function after(results, options) {
                 return [results[0]];
@@ -6397,8 +6537,8 @@ chrome.runtime.onMessage.addListener(
         }],
         commons: function () {
             var commons = {};
-            var aria = commons.aria = {}, lookupTables = aria._lut = {};
-            lookupTables.attributes = {
+            var aria = commons.aria = {}, lookupTable = aria.lookupTable = {};
+            lookupTable.attributes = {
                 'aria-activedescendant': {
                     type: 'idref'
                 },
@@ -6561,8 +6701,8 @@ chrome.runtime.onMessage.addListener(
                     type: 'string'
                 }
             };
-            lookupTables.globalAttributes = ['aria-atomic', 'aria-busy', 'aria-controls', 'aria-current', 'aria-describedby', 'aria-disabled', 'aria-dropeffect', 'aria-flowto', 'aria-grabbed', 'aria-haspopup', 'aria-hidden', 'aria-invalid', 'aria-keyshortcuts', 'aria-label', 'aria-labelledby', 'aria-live', 'aria-owns', 'aria-relevant'];
-            lookupTables.role = {
+            lookupTable.globalAttributes = ['aria-atomic', 'aria-busy', 'aria-controls', 'aria-current', 'aria-describedby', 'aria-disabled', 'aria-dropeffect', 'aria-flowto', 'aria-grabbed', 'aria-haspopup', 'aria-hidden', 'aria-invalid', 'aria-keyshortcuts', 'aria-label', 'aria-labelledby', 'aria-live', 'aria-owns', 'aria-relevant'];
+            lookupTable.role = {
                 alert: {
                     type: 'widget',
                     attributes: {
@@ -6633,7 +6773,7 @@ chrome.runtime.onMessage.addListener(
                 checkbox: {
                     type: 'widget',
                     attributes: {
-                        allowed: ['aria-checked']
+                        allowed: ['aria-checked', 'aria-required']
                     },
                     owned: null,
                     nameFrom: ['author', 'contents'],
@@ -6752,7 +6892,7 @@ chrome.runtime.onMessage.addListener(
                 grid: {
                     type: 'composite',
                     attributes: {
-                        allowed: ['aria-level', 'aria-multiselectable', 'aria-readonly', 'aria-activedescendant', 'aria-expanded']
+                        allowed: ['aria-activedescendant', 'aria-expanded', 'aria-colcount', 'aria-level', 'aria-multiselectable', 'aria-readonly', 'aria-rowcount']
                     },
                     owned: {
                         one: ['rowgroup', 'row']
@@ -6998,7 +7138,7 @@ chrome.runtime.onMessage.addListener(
                 radio: {
                     type: 'widget',
                     attributes: {
-                        allowed: ['aria-checked', 'aria-selected', 'aria-posinset', 'aria-setsize']
+                        allowed: ['aria-checked', 'aria-selected', 'aria-posinset', 'aria-setsize', 'aria-required']
                     },
                     owned: null,
                     nameFrom: ['author', 'contents'],
@@ -7021,14 +7161,14 @@ chrome.runtime.onMessage.addListener(
                     type: 'abstract'
                 },
                 region: {
-                    type: 'structure',
+                    type: 'landmark',
                     attributes: {
                         allowed: ['aria-expanded']
                     },
                     owned: null,
                     nameFrom: ['author'],
                     context: null,
-                    implicit: ['section']
+                    implicit: ['section[aria-label]', 'section[aria-labelledby]', 'section[title]']
                 },
                 roletype: {
                     type: 'abstract'
@@ -7036,7 +7176,7 @@ chrome.runtime.onMessage.addListener(
                 row: {
                     type: 'structure',
                     attributes: {
-                        allowed: ['aria-activedescendant', 'aria-colcount', 'aria-expanded', 'aria-level', 'aria-selected', 'aria-rowcount', 'aria-rowindex']
+                        allowed: ['aria-activedescendant', 'aria-colindex', 'aria-expanded', 'aria-level', 'aria-selected', 'aria-rowindex']
                     },
                     owned: {
                         one: ['cell', 'columnheader', 'rowheader', 'gridcell']
@@ -7304,21 +7444,21 @@ chrome.runtime.onMessage.addListener(
             var utils = commons.utils = axe.utils;
             aria.requiredAttr = function (role) {
                 'use strict';
-                var roles = lookupTables.role[role], attr = roles && roles.attributes && roles.attributes.required;
+                var roles = aria.lookupTable.role[role], attr = roles && roles.attributes && roles.attributes.required;
                 return attr || [];
             };
             aria.allowedAttr = function (role) {
                 'use strict';
-                var roles = lookupTables.role[role], attr = roles && roles.attributes && roles.attributes.allowed || [], requiredAttr = roles && roles.attributes && roles.attributes.required || [];
-                return attr.concat(lookupTables.globalAttributes).concat(requiredAttr);
+                var roles = aria.lookupTable.role[role], attr = roles && roles.attributes && roles.attributes.allowed || [], requiredAttr = roles && roles.attributes && roles.attributes.required || [];
+                return attr.concat(aria.lookupTable.globalAttributes).concat(requiredAttr);
             };
             aria.validateAttr = function (att) {
                 'use strict';
-                return !!lookupTables.attributes[att];
+                return !!aria.lookupTable.attributes[att];
             };
             aria.validateAttrValue = function (node, attr) {
                 'use strict';
-                var matches, list, doc = document, value = node.getAttribute(attr), attrInfo = lookupTables.attributes[attr];
+                var matches, list, doc = document, value = node.getAttribute(attr), attrInfo = aria.lookupTable.attributes[attr];
                 if (!attrInfo) {
                     return true;
                 }
@@ -7375,28 +7515,28 @@ chrome.runtime.onMessage.addListener(
             };
             aria.isValidRole = function (role) {
                 'use strict';
-                if (lookupTables.role[role]) {
+                if (aria.lookupTable.role[role]) {
                     return true;
                 }
                 return false;
             };
             aria.getRolesWithNameFromContents = function () {
-                return Object.keys(lookupTables.role).filter(function (r) {
-                    return lookupTables.role[r].nameFrom && lookupTables.role[r].nameFrom.indexOf('contents') !== -1;
+                return Object.keys(aria.lookupTable.role).filter(function (r) {
+                    return aria.lookupTable.role[r].nameFrom && aria.lookupTable.role[r].nameFrom.indexOf('contents') !== -1;
                 });
             };
             aria.getRolesByType = function (roleType) {
-                return Object.keys(lookupTables.role).filter(function (r) {
-                    return lookupTables.role[r].type === roleType;
+                return Object.keys(aria.lookupTable.role).filter(function (r) {
+                    return aria.lookupTable.role[r].type === roleType;
                 });
             };
             aria.getRoleType = function (role) {
-                var r = lookupTables.role[role];
+                var r = aria.lookupTable.role[role];
                 return r && r.type || null;
             };
             aria.requiredOwned = function (role) {
                 'use strict';
-                var owned = null, roles = lookupTables.role[role];
+                var owned = null, roles = aria.lookupTable.role[role];
                 if (roles) {
                     owned = axe.utils.clone(roles.owned);
                 }
@@ -7404,7 +7544,7 @@ chrome.runtime.onMessage.addListener(
             };
             aria.requiredContext = function (role) {
                 'use strict';
-                var context = null, roles = lookupTables.role[role];
+                var context = null, roles = aria.lookupTable.role[role];
                 if (roles) {
                     context = axe.utils.clone(roles.context);
                 }
@@ -7412,7 +7552,7 @@ chrome.runtime.onMessage.addListener(
             };
             aria.implicitNodes = function (role) {
                 'use strict';
-                var implicit = null, roles = lookupTables.role[role];
+                var implicit = null, roles = aria.lookupTable.role[role];
                 if (roles && roles.implicit) {
                     implicit = axe.utils.clone(roles.implicit);
                 }
@@ -7449,8 +7589,8 @@ chrome.runtime.onMessage.addListener(
                         return sortedRole.name;
                     });
                 };
-                var roles = Object.keys(lookupTables.role).map(function (role) {
-                    var lookup = lookupTables.role[role];
+                var roles = Object.keys(aria.lookupTable.role).map(function (role) {
+                    var lookup = aria.lookupTable.role[role];
                     return {
                         name: role,
                         implicit: lookup && lookup.implicit
@@ -7540,9 +7680,11 @@ chrome.runtime.onMessage.addListener(
             color.hasValidContrastRatio = function (bg, fg, fontSize, isBold) {
                 var contrast = color.getContrast(bg, fg);
                 var isSmallFont = isBold && Math.ceil(fontSize * 72) / 96 < 14 || !isBold && Math.ceil(fontSize * 72) / 96 < 18;
+                var expectedContrastRatio = isSmallFont ? 4.5 : 3;
                 return {
-                    isValid: isSmallFont && contrast >= 4.5 || !isSmallFont && contrast >= 3,
-                    contrastRatio: contrast
+                    isValid: contrast > expectedContrastRatio,
+                    contrastRatio: contrast,
+                    expectedContrastRatio: expectedContrastRatio
                 };
             };
             function _getFonts(style) {
@@ -7678,8 +7820,7 @@ chrome.runtime.onMessage.addListener(
                 }
                 return bgNodes;
             }
-            color.getBackgroundStack = function (elm) {
-                var rect = elm.getBoundingClientRect();
+            color.getCoords = function (rect) {
                 var x = void 0, y = void 0;
                 if (rect.left > window.innerWidth) {
                     return;
@@ -7689,7 +7830,64 @@ chrome.runtime.onMessage.addListener(
                 }
                 x = Math.min(Math.ceil(rect.left + rect.width / 2), window.innerWidth - 1);
                 y = Math.min(Math.ceil(rect.top + rect.height / 2), window.innerHeight - 1);
-                var elmStack = document.elementsFromPoint(x, y);
+                return {
+                    x: x,
+                    y: y
+                };
+            };
+            color.getRectStack = function (elm) {
+                var boundingCoords = color.getCoords(elm.getBoundingClientRect());
+                if (boundingCoords) {
+                    var rects = Array.from(elm.getClientRects());
+                    var boundingStack = Array.from(document.elementsFromPoint(boundingCoords.x, boundingCoords.y));
+                    if (rects && rects.length > 1) {
+                        var filteredArr = rects.filter(function (rect) {
+                            return rect.width && rect.width > 0;
+                        }).map(function (rect) {
+                            var coords = color.getCoords(rect);
+                            if (coords) {
+                                return Array.from(document.elementsFromPoint(coords.x, coords.y));
+                            }
+                        });
+                        filteredArr.splice(0, 0, boundingStack);
+                        return filteredArr;
+                    } else {
+                        return [boundingStack];
+                    }
+                }
+                return null;
+            };
+            color.filteredRectStack = function (elm) {
+                var rectStack = color.getRectStack(elm);
+                if (rectStack && rectStack.length === 1) {
+                    return rectStack[0];
+                } else if (rectStack && rectStack.length > 1) {
+                    var boundingStack = rectStack.shift();
+                    var isSame = void 0;
+                    rectStack.forEach(function (rectList, index) {
+                        if (index === 0) {
+                            return;
+                        }
+                        var rectA = rectStack[index - 1], rectB = rectStack[index];
+                        isSame = rectA.every(function (element, elementIndex) {
+                            return element === rectB[elementIndex];
+                        }) || boundingStack.includes(elm);
+                    });
+                    if (!isSame) {
+                        axe.commons.color.incompleteData.set('bgColor', 'elmPartiallyObscuring');
+                        return null;
+                    }
+                    return rectStack[0];
+                } else {
+                    axe.commons.color.incompleteData.set('bgColor', 'outsideViewport');
+                    return null;
+                }
+            };
+            color.getBackgroundStack = function (elm) {
+                var elmStack = color.filteredRectStack(elm);
+                if (elmStack === null) {
+                    return null;
+                }
                 elmStack = includeMissingElements(elmStack, elm);
                 elmStack = dom.reduceToElementsBelowFloating(elmStack, elm);
                 elmStack = sortPageBackground(elmStack);
@@ -7894,6 +8092,17 @@ chrome.runtime.onMessage.addListener(
             };
             dom.isFocusable = function (el) {
                 'use strict';
+                if (dom.isNativelyFocusable(el)) {
+                    return true;
+                }
+                var tabindex = el.getAttribute('tabindex');
+                if (tabindex && !isNaN(parseInt(tabindex, 10))) {
+                    return true;
+                }
+                return false;
+            };
+            dom.isNativelyFocusable = function (el) {
+                'use strict';
                 if (!el || el.disabled || !dom.isVisible(el) && el.nodeName.toUpperCase() !== 'AREA') {
                     return false;
                 }
@@ -7913,10 +8122,6 @@ chrome.runtime.onMessage.addListener(
                     case 'DETAILS':
                     case 'BUTTON':
                         return true;
-                }
-                var tabindex = el.getAttribute('tabindex');
-                if (tabindex && !isNaN(parseInt(tabindex, 10))) {
-                    return true;
                 }
                 return false;
             };
@@ -7988,9 +8193,9 @@ chrome.runtime.onMessage.addListener(
                 linkText = axe.commons.text.sanitize(linkText);
                 return parentText.length > linkText.length;
             };
-            dom.isNode = function (candidate) {
+            dom.isNode = function (element) {
                 'use strict';
-                return candidate instanceof Node;
+                return element instanceof Node;
             };
             dom.isOffscreen = function (element) {
                 'use strict';
@@ -8053,12 +8258,12 @@ chrome.runtime.onMessage.addListener(
                 return false;
             };
             var visualRoles = ['checkbox', 'img', 'radio', 'range', 'slider', 'spinbutton', 'textbox'];
-            dom.isVisualContent = function (candidate) {
-                var role = candidate.getAttribute('role');
+            dom.isVisualContent = function (element) {
+                var role = element.getAttribute('role');
                 if (role) {
                     return visualRoles.indexOf(role) !== -1;
                 }
-                switch (candidate.tagName.toUpperCase()) {
+                switch (element.tagName.toUpperCase()) {
                     case 'IMG':
                     case 'IFRAME':
                     case 'OBJECT':
@@ -8076,7 +8281,7 @@ chrome.runtime.onMessage.addListener(
                         return true;
 
                     case 'INPUT':
-                        return candidate.type !== 'hidden';
+                        return element.type !== 'hidden';
 
                     default:
                         return false;
@@ -8205,8 +8410,8 @@ chrome.runtime.onMessage.addListener(
                 }
                 return 'auto';
             };
-            table.isColumnHeader = function (node) {
-                return ['col', 'auto'].indexOf(table.getScope(node)) !== -1;
+            table.isColumnHeader = function (element) {
+                return ['col', 'auto'].indexOf(table.getScope(element)) !== -1;
             };
             table.isDataCell = function (cell) {
                 if (!cell.children.length && !cell.textContent.trim()) {
@@ -8322,8 +8527,8 @@ chrome.runtime.onMessage.addListener(
                 }
                 return false;
             };
-            table.isRowHeader = function (node) {
-                return ['row', 'auto'].indexOf(table.getScope(node)) !== -1;
+            table.isRowHeader = function (cell) {
+                return ['row', 'auto'].includes(table.getScope(cell));
             };
             table.toGrid = function (node) {
                 var table = [];
